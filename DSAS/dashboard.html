@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>School Seating Arrangement</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 0;
+    }
+
+    .navbar {
+      background: linear-gradient(to right, #6a11cb, #2575fc);
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .navbar button {
+      background: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    .navbar button:hover {
+      background: #e6e6e6;
+    }
+
+    .main {
+      display: flex;
+      padding: 20px;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+
+    .input-area {
+      margin-bottom: 20px;
+    }
+
+    .input-area input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .btn {
+      background: #2575fc;
+      color: white;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      background: #6a11cb;
+    }
+
+    .student {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+
+    .student img {
+      width: 30px;
+      height: 30px;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .classroom {
+      flex-grow: 1;
+      display: grid;
+      grid-template-columns: repeat(10, 80px);
+      grid-gap: 10px;
+      justify-content: center;
+      margin-left: 20px;
+    }
+
+    .seat {
+      width: 70px;
+      height: 90px;
+      background: white;
+      border: 2px solid #2575fc;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      text-align: center;
+      padding: 3px;
+      cursor: pointer;
+      transition: transform 0.2s, background 0.3s;
+      word-wrap: break-word;
+    }
+
+    .seat img {
+      width: 60px;
+      height: 60px;
+      border-radius: 0;
+      margin-bottom: 3px;
+      object-fit: cover;
+      border: 1px solid #fff;
+    }
+
+    .seat.occupied {
+      background: #d1e7ff;
+      border-color: #6a11cb;
+    }
+
+    /* ✅ Print style */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .print-area, .print-area * {
+        visibility: visible;
+      }
+      .print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+        padding: 20px;
+      }
+      .print-students {
+        margin-bottom: 20px;
+      }
+      .print-students h2 {
+        margin-bottom: 10px;
+        font-size: 18px;
+        color: #2575fc;
+      }
+      .print-students ul {
+        list-style: none;
+        padding: 0;
+      }
+      .print-students li {
+        margin: 5px 0;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <button onclick="printDashboard()">🖨 Print</button>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="input-area">
+        <input type="text" id="studentName" placeholder="Enter student name">
+        <input type="file" id="studentPhotoFile" accept="image/*">
+        <button class="btn" onclick="addStudent()">➕ Add Student</button>
+      </div>
+      <div id="studentList"></div>
+    </div>
+
+    <div class="classroom" id="classroom"></div>
+  </div>
+
+  <!-- ✅ Print-only content -->
+  <div class="print-area" id="printArea">
+    <div class="print-students">
+      <h2>Assigned Students</h2>
+      <ul id="printStudentList"></ul>
+    </div>
+    <h2>Classroom Seating Arrangement</h2>
+    <div class="classroom" id="printClassroom"></div>
+  </div>
+
+  <script>
+    const classroom = document.getElementById("classroom");
+    const studentListDiv = document.getElementById("studentList");
+    const totalSeats = 50;
+    let students = [];
+    let selectedStudent = null;
+    let seatAssignments = {};
+
+    // Create seats
+    for (let i = 1; i <= totalSeats; i++) {
+      const seat = document.createElement("div");
+      seat.classList.add("seat");
+      seat.innerText = "Seat " + i;
+      seat.onclick = () => assignSeat(i, seat);
+      classroom.appendChild(seat);
+    }
+
+    function addStudent() {
+      const nameInput = document.getElementById("studentName");
+      const fileInput = document.getElementById("studentPhotoFile");
+      const name = nameInput.value.trim();
+
+      if (name === "") {
+        alert("Please enter a name.");
+        return;
+      }
+
+      let photo = "https://via.placeholder.com/60";
+
+      if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          photo = e.target.result;
+          students.push({ name, photo });
+          students.sort((a, b) => a.name.localeCompare(b.name));
+          renderStudentList();
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+      } else {
+        students.push({ name, photo });
+        students.sort((a, b) => a.name.localeCompare(b.name));
+        renderStudentList();
+      }
+
+      nameInput.value = "";
+      fileInput.value = "";
+    }
+
+    function renderStudentList() {
+      studentListDiv.innerHTML = "";
+      students.forEach((student, index) => {
+        const div = document.createElement("div");
+        div.classList.add("student");
+
+        const img = document.createElement("img");
+        img.src = student.photo;
+
+        const span = document.createElement("span");
+        span.innerText = student.name;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.innerText = "❌";
+        removeBtn.style.marginLeft = "auto";
+        removeBtn.style.border = "none";
+        removeBtn.style.background = "transparent";
+        removeBtn.style.cursor = "pointer";
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          students.splice(index, 1);
+          renderStudentList();
+        };
+
+        div.appendChild(img);
+        div.appendChild(span);
+        div.appendChild(removeBtn);
+
+        div.onclick = () => selectStudent(div, student);
+        studentListDiv.appendChild(div);
+      });
+    }
+
+    function selectStudent(div, student) {
+      document.querySelectorAll(".student").forEach(el => el.style.background = "");
+      div.style.background = "#d1e7ff";
+      selectedStudent = student;
+    }
+
+    function assignSeat(seatNumber, seatElement) {
+      if (!selectedStudent) {
+        alert("Select a student first!");
+        return;
+      }
+      seatAssignments[seatNumber] = selectedStudent;
+      seatElement.innerHTML = `<img src="${selectedStudent.photo}" alt=""><br>${selectedStudent.name}`;
+      seatElement.classList.add("occupied");
+    }
+
+    // ✅ Print function
+    function printDashboard() {
+      const printStudentList = document.getElementById("printStudentList");
+      const printClassroom = document.getElementById("printClassroom");
+
+      printStudentList.innerHTML = "";
+      printClassroom.innerHTML = "";
+
+      // Only assigned students
+      Object.values(seatAssignments).forEach(student => {
+        const li = document.createElement("li");
+        li.innerText = student.name;
+        printStudentList.appendChild(li);
+      });
+
+      // Seating layout
+      for (let i = 1; i <= totalSeats; i++) {
+        const seat = document.createElement("div");
+        seat.classList.add("seat");
+        if (seatAssignments[i]) {
+          seat.innerHTML = `<img src="${seatAssignments[i].photo}" alt=""><br>${seatAssignments[i].name}`;
+          seat.classList.add("occupied");
+        } else {
+          seat.innerText = "Seat " + i;
+        }
+        printClassroom.appendChild(seat);
+      }
+
+      window.print();
+    }
+  </script>
+</body>
+</html>
